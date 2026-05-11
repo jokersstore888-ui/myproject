@@ -1535,3 +1535,109 @@ export default function App() {
     </div>
   );
 }
+/**
+ * firebaseData.additions.ts
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Paste these exports into your existing  src/services/firebaseData.ts  file.
+ *
+ * They follow the exact same patterns already used for users & conversations:
+ *   • save*   → doc(db, collection, id) + setDoc (merge: true)
+ *   • delete* → deleteDoc
+ *   • subscribe* → onSnapshot  (returns an unsubscribe function)
+ *   • update* → updateDoc with a partial payload
+ *
+ * Firestore collections created:
+ *   reports      – security reports submitted by guards
+ *   visitors     – scheduled visitor records
+ *   attendance   – clock-in / QR check-in entries
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
+import { db } from "./firebase";           // adjust path to match your project
+import type { AttendanceRecord, Report, VisitorRecord } from "../types/security";
+
+// ─── Reports ─────────────────────────────────────────────────────────────────
+
+/** Write (or overwrite) a report document. */
+export async function saveReport(report: Report): Promise<void> {
+  await setDoc(doc(db, "reports", report.id), report, { merge: true });
+}
+
+/** Hard-delete a report document. */
+export async function deleteReportRemote(id: string): Promise<void> {
+  await deleteDoc(doc(db, "reports", id));
+}
+
+/**
+ * Subscribe to the reports collection ordered newest-first.
+ * Returns an unsubscribe function – call it on component unmount.
+ */
+export function subscribeReports(
+  cb: (reports: Report[]) => void,
+): () => void {
+  const q = query(collection(db, "reports"), orderBy("time", "desc"));
+  return onSnapshot(q, snapshot => {
+    cb(snapshot.docs.map(d => d.data() as Report));
+  });
+}
+
+// ─── Visitors ─────────────────────────────────────────────────────────────────
+
+/** Write (or overwrite) a visitor record. */
+export async function saveVisitor(visitor: VisitorRecord): Promise<void> {
+  await setDoc(doc(db, "visitors", visitor.id), visitor, { merge: true });
+}
+
+/**
+ * Partially update a visitor – used to flip status or reminderSent flag.
+ * Only the supplied fields are written; the rest of the document is preserved.
+ */
+export async function updateVisitorRemote(
+  id: string,
+  updates: Partial<VisitorRecord>,
+): Promise<void> {
+  await updateDoc(doc(db, "visitors", id), updates as Record<string, unknown>);
+}
+
+/**
+ * Subscribe to all visitor records ordered by creation time (newest first).
+ * Returns an unsubscribe function.
+ */
+export function subscribeVisitors(
+  cb: (visitors: VisitorRecord[]) => void,
+): () => void {
+  const q = query(collection(db, "visitors"), orderBy("createdAt", "desc"));
+  return onSnapshot(q, snapshot => {
+    cb(snapshot.docs.map(d => d.data() as VisitorRecord));
+  });
+}
+
+// ─── Attendance ───────────────────────────────────────────────────────────────
+
+/** Write an attendance record (clock-in or QR check-in). */
+export async function saveAttendance(record: AttendanceRecord): Promise<void> {
+  await setDoc(doc(db, "attendance", record.id), record, { merge: true });
+}
+
+/**
+ * Subscribe to all attendance records ordered newest-first.
+ * Returns an unsubscribe function.
+ */
+export function subscribeAttendance(
+  cb: (records: AttendanceRecord[]) => void,
+): () => void {
+  const q = query(collection(db, "attendance"), orderBy("time", "desc"));
+  return onSnapshot(q, snapshot => {
+    cb(snapshot.docs.map(d => d.data() as AttendanceRecord));
+  });
+}

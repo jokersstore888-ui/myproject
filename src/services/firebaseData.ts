@@ -5,11 +5,6 @@ import {
   getDocs,
   onSnapshot,
   setDoc,
-  updateDoc,
-  arrayUnion,
-  query,
-  where,
-  serverTimestamp,
 } from "firebase/firestore";
 import type { ChatMessage, Conversation, User } from "../types/security";
 import { firestore } from "./firebase";
@@ -17,8 +12,6 @@ import { firestore } from "./firebase";
 const approvedUsersCollection = collection(firestore, "approved_users");
 const pendingUsersCollection = collection(firestore, "pending_users");
 const conversationsCollection = collection(firestore, "conversations");
-const reportsCollection = collection(firestore, "reports");
-const visitorsCollection = collection(firestore, "visitors");
 
 export function subscribeApprovedUsers(callback: (users: User[]) => void) {
   return onSnapshot(approvedUsersCollection, (snapshot) => {
@@ -38,20 +31,6 @@ export function subscribeConversations(callback: (conversations: Conversation[])
   return onSnapshot(conversationsCollection, (snapshot) => {
     const conversations = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })) as Conversation[];
     callback(conversations);
-  });
-}
-
-export function subscribeReports(callback: (reports: any[]) => void) {
-  return onSnapshot(reportsCollection, (snapshot) => {
-    const reports = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
-    callback(reports);
-  });
-}
-
-export function subscribeVisitors(callback: (visitors: any[]) => void) {
-  return onSnapshot(visitorsCollection, (snapshot) => {
-    const visitors = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
-    callback(visitors);
   });
 }
 
@@ -105,60 +84,4 @@ export function normalizeConversation(
     ...conversation,
     messages: message ? [...conversation.messages, message] : conversation.messages,
   };
-}
-
-// New functions for reports and visitors
-export async function saveReport(reportId: string, reportData: any) {
-  try {
-    await setDoc(doc(firestore, "reports", reportId), {
-      ...reportData,
-      timestamp: serverTimestamp(),
-      createdAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("Error saving report:", error);
-    throw error;
-  }
-}
-
-export async function deleteReport(reportId: string) {
-  try {
-    await deleteDoc(doc(firestore, "reports", reportId));
-  } catch (error) {
-    console.error("Error deleting report:", error);
-    throw error;
-  }
-}
-
-export async function saveVisitor(visitorId: string, visitorData: any) {
-  try {
-    await setDoc(doc(firestore, "visitors", visitorId), {
-      ...visitorData,
-      timestamp: serverTimestamp(),
-      createdAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("Error saving visitor:", error);
-    throw error;
-  }
-}
-
-export async function deleteVisitor(visitorId: string) {
-  try {
-    await deleteDoc(doc(firestore, "visitors", visitorId));
-  } catch (error) {
-    console.error("Error deleting visitor:", error);
-    throw error;
-  }
-}
-
-export async function updateVisitorStatus(visitorId: string, status: string) {
-  try {
-    await updateDoc(doc(firestore, "visitors", visitorId), {
-      status: status,
-    });
-  } catch (error) {
-    console.error("Error updating visitor status:", error);
-    throw error;
-  }
 }
